@@ -21,14 +21,15 @@ def isa_density(alt):
         return rho0 * (temp / T0) ** 4.2559
     else:                                # stratosphere
         rho11 = rho0 * (216.65 / T0) ** 4.2559
-        return rho11 * math.exp(-g * (h - 11000) / (R * 216.65))
+        return rho11 * math.exp(-g * (alt - 11000) / (R * 216.65))
 
 
 # ------------------------------------------------------------
 # PASO 2: empuje idle (fórmulas del Annex A)
 # ------------------------------------------------------------
 def empuje_idle(avion, h):
-    """Empuje en descenso (idle), configuración limpia, en N."""
+    #"""Empuje en descenso (idle), configuración limpia, en N."""
+
     T_max = avion.CT1 * (1 - h / avion.CT2 + avion.CT3 * h ** 2)
     if h > avion.hp_desc:
         return avion.CT_desc_high * T_max
