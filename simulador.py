@@ -24,9 +24,8 @@ def isa_density(alt):
         return rho11 * math.exp(-g * (h - 11000) / (R * 216.65))
 
 
-# ------------------------------------------------------------
-# PASO 2: empuje idle (fórmulas del Annex A)
-# ------------------------------------------------------------
+
+# Step 2: idle thrust (Annex A equations)
 def empuje_idle(avion, h):
     """Empuje en descenso (idle), configuración limpia, en N."""
     T_max = avion.CT1 * (1 - h / avion.CT2 + avion.CT3 * h ** 2)
@@ -36,26 +35,24 @@ def empuje_idle(avion, h):
         return avion.CT_desc_low * T_max      # clean (por encima de 6000 ft)
 
 
-# ------------------------------------------------------------
-# PASO 3: ROD para una altitud h y una velocidad V dadas
-# Equilibrio de fuerzas: W*sin(gamma) = D - T   (vuelo estacionario)
-# ------------------------------------------------------------
+
+# Step 3: ROD for  altitud h and velocity v known
+# Stationary flight : W*sin(gamma) = D - T
 def calcular_rod(avion, masa, h, V):
     rho = densidad_isa(h)
     W = masa * g
-    CL = 2 * W / (rho * V ** 2 * avion.S)           # L = W (gamma pequeño)
+    CL = 2 * W / (rho * V ** 2 * avion.S)           # L = W (small gamma)
     CD = avion.CD0_clean + avion.CD2_clean * CL ** 2
     D = 0.5 * rho * V ** 2 * avion.S * CD
     T = empuje_idle(avion, h)
     sin_gamma = (D - T) / W
-    ROD = V * sin_gamma                              # m/s (positivo = bajando)
+    ROD = V * sin_gamma                              # m/s (positive = decreasing)
     return ROD, sin_gamma
 
 
-# ------------------------------------------------------------
-# PASO 4: buscar la velocidad que MINIMIZA el ROD
-# Probamos muchas velocidades y nos quedamos con la mejor
-# ------------------------------------------------------------
+# Step 4: search velocity that minimizes ROD
+# Try different velocities and choose the best
+
 def velocidad_min_rod(avion, masa, h):
     mejor_V = None
     mejor_ROD = 1e9
@@ -71,18 +68,14 @@ def velocidad_min_rod(avion, masa, h):
     return mejor_V, mejor_ROD, mejor_sin
 
 
-# ------------------------------------------------------------
-# PASO 5: simular el descenso AL REVÉS en el tiempo.
-# Empezamos en el IAF (6000 ft, distancia 0, tiempo 0) y vamos
-# subiendo hacia atrás. Así sabemos a qué altitud tiene que estar
-# el avión a cada distancia / tiempo antes del IAF.
-# ------------------------------------------------------------
+# Step 5: descent simulator in reverse in time
+# Start at IAF (6000 ft, distance 0, time 0) and increasing in reverse. This allows us to know the exact altitude at which each aircraft at each distance/ time before IAF
 def simular_cdo(avion, masa, h_max=12000.0, dt=1.0):
-    h = 6000 * ft          # altitud en el IAF (m)
-    x = 0.0                # distancia recorrida antes del IAF (m)
-    t = 0.0                # tiempo antes del IAF (s)
+    h = 6000 * ft          # altitude at IAF (m)
+    x = 0.0                # travelled distance before IAF (m)
+    t = 0.0                # time before IAF (s)
 
-    tabla = []             # cada fila: (t, x, h, V)
+    tabla = []             # each row: (t, x, h, V)
     while h < h_max:
         V, ROD, sin_gamma = velocidad_min_rod(avion, masa, h)
         tabla.append((t, x, h, V))
@@ -93,9 +86,7 @@ def simular_cdo(avion, masa, h_max=12000.0, dt=1.0):
     return tabla
 
 
-# ------------------------------------------------------------
-# PASO 6: leer la tabla -> altitud y tiempo para una distancia dada
-# ------------------------------------------------------------
+# Step 6: read the table --> altitude and time for a given distance
 def resultado_a_distancia(tabla, distancia_m):
     """Devuelve (altitud en m, tiempo hasta el IAF en s) a esa distancia del IAF."""
     for i in range(1, len(tabla)):
@@ -104,12 +95,12 @@ def resultado_a_distancia(tabla, distancia_m):
             t2, x2, h2, V2 = tabla[i]
             f = (distancia_m - x1) / (x2 - x1)      # interpolación lineal
             return h1 + f * (h2 - h1), t1 + f * (t2 - t1)
-    return None, None                                # distancia demasiado grande
+    return None, None                                # larger distance
 
 
-# ------------------------------------------------------------
+#
 # PRUEBA: simulamos los 6 vuelos del enunciado
-# ------------------------------------------------------------
+
 if __name__ == "__main__":
     vuelos = [
         # (avión, STAR, % MLW)
@@ -121,8 +112,8 @@ if __name__ == "__main__":
         (B767, "CASPE2W", 1.00),
     ]
 
-    # Distancia de cada STAR (primer waypoint -> IAF), en NM.
-    # ¡¡RELLENAR con la carta STAR del AIP de ENAIRE!!
+    # Distance for each STAR (first waypoint -> IAF), in NM.
+    # Complete with the STAR card of ENAIRE AIP
     distancia_star_NM = {
         "ALBER1Z": 50, "PUMAL1Z": 50, "MARTA3Z": 50,
         "MATEX3Z": 50, "LOBAR2W": 50, "CASPE2W": 50,
