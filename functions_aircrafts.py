@@ -1,5 +1,5 @@
 import math
-from aviones import B767, B777, B737, A320, A319
+from Airplanes import *
 
 # ------------------------------------------------------------
 # International standard atmosphere
