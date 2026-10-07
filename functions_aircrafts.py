@@ -1,4 +1,5 @@
 import math
+import matplotlib.pyplot as plt
 from Airplanes import *
 
 # ------------------------------------------------------------
@@ -96,3 +97,101 @@ def result_on_given_distance(table, distance):
             return alt1 + f * (alt2 - alt1), t1 + f * (t2 - t1)
     return None, None                                # larger distance
 
+def ask_option(text, options):
+    """Asks until the user writes one of the options."""
+    options = list(options)
+    while True:
+        a = input(f"{text} {options}: ").strip().upper()
+        if a in options:
+            return a
+        print("Not valid, try again")
+
+
+def ask_for_number(text, minimum, maximum):
+    """Asks until the user writes a number between [minimum, maximum]."""
+    while True:
+        try:
+            v = float(input(f"{text} ({minimum}-{maximum}): ").replace(",", "."))
+            if minimum <= v <= maximum:
+                return v
+        except ValueError:
+            pass
+        print("Not valid, try again")
+
+
+def add_flight(ax_h, ax_v, airplane, pct):
+    """Simulates one aircraft/weight and draws its curves. Returns the table and the line."""
+    table = simulate_cdo(airplane, pct * airplane.max_landing_weight)
+    label = f"{airplane.name} [{round(pct * 100)}% MLW]"
+    x = [-row[1] for row in table]                       # negative: before the IAF (m)
+    line, = ax_h.plot(x, [row[2] for row in table], label=label)             # h (m)
+    ax_v.plot(x, [row[3] / KT for row in table], color=line.get_color(), label=label)  # TAS (kt)
+    return table, line
+
+
+def run_simulator():
+    """Asks for the data in the console, simulates and shows the plots."""
+    fig_h, ax_h = plt.subplots(figsize=(14, 7))   # altitude plot (like the reference figure)
+    fig_v, ax_v = plt.subplots(figsize=(14, 5))   # TAS plot
+
+    mode = ask_option("Mode", ["FLIGHTS", "ALL"])
+
+    if mode == "ALL":
+        # Reproduces the reference figure: 5 aircraft x (100% and 80% MLW)
+        for airplane in airplanes.values():
+            for pct in (1.0, 0.8):
+                add_flight(ax_h, ax_v, airplane, pct)
+    else:
+        while True:
+            print("\n--- New flight ---")
+            name = ask_option("Airplane", airplanes)
+            airplane = airplanes[name]
+            pct = ask_for_number("Weight (% of MLW)", 50, 100) / 100
+
+            star = ask_option("STAR", list(distance_from_star) + ["OTHER"])
+            if star == "OTHER":
+                dist_nm = ask_for_number("Distance of WP from IAF (NM)", 1, 300)
+                star = f"{dist_nm:.0f} NM"
+            else:
+                dist_nm = distance_from_star[star]
+
+            table, line = add_flight(ax_h, ax_v, airplane, pct)
+            altitude, t = result_on_given_distance(table, dist_nm * NM)
+
+            print(f"\n{airplane.name} - {star} - {round(pct * 100)}% MLW")
+            if altitude is None:
+                print("The distance is out of the table")
+            else:
+                print(f" Altitude at the entry WP: {altitude / ft:.0f} ft ({altitude:.0f} m)")
+                print(f" Time WP -> IAF: {t / 60:.1f} min")
+                # Mark the entry WP on the curve
+                ax_h.plot(-dist_nm * NM, altitude, "o", color=line.get_color())
+                ax_h.annotate(f"{star}: {altitude:.0f} m", (-dist_nm * NM, altitude),
+                              textcoords="offset points", xytext=(8, 8))
+
+            if input("\nAdd another flight? (y/n): ").strip().lower() not in ("y", "s"):
+                break
+
+    # Format of the altitude plot
+    ax_h.axhline(6000 * ft, color="gray", linestyle="--", linewidth=0.8)
+    ax_h.text(0, 6000 * ft, "IAF (6000 ft) ", ha="right", va="bottom", color="gray")
+    ax_h.set_xlabel("x [m]")
+    ax_h.set_ylabel("h [m]")
+    ax_h.set_title("Continuous descent (CDO) until the IAF (x = 0)")
+    ax_h.grid(True)
+    ax_h.legend(loc="upper right")
+
+    # Format of the TAS plot
+    ax_v.set_xlabel("x [m]")
+    ax_v.set_ylabel("TAS [kt]")
+    ax_v.set_title("True airspeed during the descent")
+    ax_v.grid(True)
+    ax_v.legend(loc="upper right")
+
+    fig_h.tight_layout()
+    fig_v.tight_layout()
+    plt.show()
+
+
+if __name__ == "__main__":
+    run_simulator()
