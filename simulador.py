@@ -25,30 +25,39 @@ class SimulatorApp:
         self.flights = []          # every flight added: label, star, distance, table, results
 
         # ---------------- Left panel: inputs ----------------
+        # Marc que agrupa tots els controls d'un vol nou
         panel = ttk.LabelFrame(root, text="New flight", padding=10)
         panel.grid(row=0, column=0, sticky="ns", padx=10, pady=10)
 
+        # Selector d'avió: llista desplegable amb els avions del diccionari `airplanes`
         ttk.Label(panel, text="Airplane").grid(row=0, column=0, sticky="w")
         self.var_airplane = tk.StringVar(value=list(airplanes)[0])
         ttk.Combobox(panel, textvariable=self.var_airplane, values=list(airplanes),
                      state="readonly", width=15).grid(row=0, column=1, pady=3)
 
+        # Pes de l'avió com a percentatge del pes màxim d'aterratge (MLW)
         ttk.Label(panel, text="Weight (% MLW)").grid(row=1, column=0, sticky="w")
         self.var_weight = tk.StringVar(value="100")
         ttk.Entry(panel, textvariable=self.var_weight, width=17).grid(row=1, column=1, pady=3)
 
+        # Selector de STAR ; inclou l'opció "OTHER" per a una distància manual
         ttk.Label(panel, text="STAR").grid(row=2, column=0, sticky="w")
         self.var_star = tk.StringVar(value=list(distance_from_star)[0])
         cb_star = ttk.Combobox(panel, textvariable=self.var_star,
                                values=list(distance_from_star) + ["OTHER"],
                                state="readonly", width=15)
         cb_star.grid(row=2, column=1, pady=3)
+
+        # Quan l'usuari tria una STAR, s'omple automàticament la seva distància
         cb_star.bind("<<ComboboxSelected>>", self.on_star_selected)
 
+        # Distància entre el waypoint d'entrada (WP) i l'IAF, en milles nàutiques.
+        # S'inicialitza amb la de la STAR seleccionada, però es pot editar.
         ttk.Label(panel, text="Distance WP-IAF (NM)").grid(row=3, column=0, sticky="w")
         self.var_distance = tk.StringVar(value=str(distance_from_star[self.var_star.get()]))
         ttk.Entry(panel, textvariable=self.var_distance, width=17).grid(row=3, column=1, pady=3)
 
+        # Botons d'acció (cadascun ocupa les dues columnes)
         ttk.Button(panel, text="Add flight", command=self.add_flight).grid(
             row=4, column=0, columnspan=2, sticky="ew", pady=(10, 3))
         ttk.Button(panel, text="Add all (5 aircraft, 100% and 80%)", command=self.add_all).grid(
@@ -58,33 +67,45 @@ class SimulatorApp:
         ttk.Button(panel, text="Clear all", command=self.clear_all).grid(
             row=7, column=0, columnspan=2, sticky="ew", pady=3)
 
+        # Quadre de text (només lectura) on es mostren els resultats numèrics
         ttk.Label(panel, text="Results").grid(row=8, column=0, columnspan=2, sticky="w", pady=(10, 0))
         self.txt_results = tk.Text(panel, width=38, height=14, state="disabled")
         self.txt_results.grid(row=9, column=0, columnspan=2)
 
         # ---------------- Right panel: plots ----------------
+
+        # Figura de matplotlib amb dos subgràfics apilats que comparteixen l'eix X:
+        # dalt: altitud (h) / baix: velocitat vertadera (TAS)
         self.fig = Figure(figsize=(10, 7))
         self.ax_h = self.fig.add_subplot(2, 1, 1)
         self.ax_v = self.fig.add_subplot(2, 1, 2, sharex=self.ax_h)
+
+        # Incrustem la figura dins la finestra de Tkinter
         self.canvas = FigureCanvasTkAgg(self.fig, master=root)
+
+        # Barra d'eines de matplotlib (zoom, desplaçament, guardar...)
         self.canvas.get_tk_widget().grid(row=0, column=1, sticky="nsew")
         NavigationToolbar2Tk(self.canvas, root, pack_toolbar=False).grid(row=1, column=1, sticky="ew")
+
+        # Perquè la gràfica s'ampliï quan es redimensiona la finestra
         root.columnconfigure(1, weight=1)
         root.rowconfigure(0, weight=1)
 
+        # Dibuixem els eixos buits inicials
         self.redraw()
 
     # ---------------- Actions ----------------
     def on_star_selected(self, event=None):
         """When a STAR is chosen, we fill its distance (editable if OTHER)."""
-        star = self.var_star.get()
-        if star in distance_from_star:
+        star = self.var_star.get()                                                      # Llegim quina STAR hi ha seleccionada al desplegable
+
+        if star in distance_from_star:                                                  # Si la STAR és al diccionari, posem la seva distància al camp de distància.
             self.var_distance.set(str(distance_from_star[star]))
 
     def simulate(self, airplane, pct):
-        table = simulate_cdo(airplane, pct * airplane.max_landing_weight)
+        table = simulate_cdo(airplane, pct * airplane.max_landing_weight)               # Pes real = fracció (0.8, 1.0...) x pes màxim d'aterratge de l'avió.
         label = f"{airplane.name} [{round(pct * 100)}% MLW]"
-        return table, label
+        return table, label                                                             # simulació retorna una taula amb una fila per instant del descens.
 
     def add_flight(self):
         # 1) Read and validate the inputs
