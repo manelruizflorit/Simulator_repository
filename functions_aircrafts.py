@@ -69,8 +69,7 @@ def min_rod_velocity(aircraft, mass, altitude):
 # Descent simulator in reverse in time
 # Start at IAF (6000 ft, distance 0, time 0) and increasing in reverse.
 # This allows us to know the exact altitude at which each aircraft at each distance/ time before IAF
-def simulate_cdo(aircraft, mass, dt=1.0):
-    max_alt = 12000
+def simulate_cdo(aircraft, mass, dt=1.0, max_alt=12000):
     alt = 6000 * ft          # altitude at IAF (m)
     x = 0.0                # travelled distance before IAF (m)
     t = 0.0                # time before IAF (s)
